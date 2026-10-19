@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>الاعتراف</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d2433">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<!--
+قواعد Firestore (الصقها في Firebase > Firestore > Rules، وبدّل UID بمعرّف حساب أبونا):
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == 'UID_ABONA';
+    }
+  }
+}
+-->
+<style>
+:root{--ink:#1d2433;--paper:#f4f5f7;--card:#fff;--red:#8f1d2c;--gold:#b0832a;--line:#dfe2e8;--mute:#6a7385;--ok:#2f6b4f}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Cairo,Tahoma,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;min-height:100vh}
+[hidden]{display:none!important}
+button,input,select{font:inherit}
+button{cursor:pointer;border:0;border-radius:8px;padding:.5rem .9rem;background:var(--ink);color:#fff}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.red{background:var(--red)}
+button.ok{background:var(--ok)}
+input{width:100%;padding:.6rem .7rem;border:1px solid var(--line);border-radius:8px;background:#fff}
+label{display:block;font-weight:600;margin:.7rem 0 .2rem;font-size:.95rem}
+.cross{color:var(--gold);font-size:2.2rem;line-height:1}
+#login{max-width:380px;margin:12vh auto;padding:1.6rem;background:var(--card);border-radius:14px;border:1px solid var(--line)}
+#login h1{margin:.2rem 0 1rem;font-size:1.6rem}
+#login button{width:100%;margin-top:1.1rem;padding:.7rem}
+.err{color:var(--red);font-size:.9rem;min-height:1.2rem;margin-top:.6rem}
+header{background:var(--ink);color:#fff;padding:.9rem 1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+header h1{margin:0;font-size:1.3rem;flex:1}
+header button{background:#ffffff1f}
+main{max-width:860px;margin:0 auto;padding:1rem}
+.bar{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.8rem}
+.bar input{flex:1;min-width:180px}
+.stats{display:flex;gap:1.2rem;margin:.4rem 0 1rem;color:var(--mute);font-size:.95rem}
+.stats b{color:var(--ink);font-size:1.2rem}
+.stats .late b{color:var(--red)}
+.c{display:flex;gap:.8rem;background:var(--card);border:1px solid var(--line);border-inline-start:5px solid var(--ok);border-radius:10px;padding:.8rem;margin-bottom:.7rem}
+.c.late{border-inline-start-color:var(--red)}
+.no{min-width:2rem;font-weight:800;color:var(--mute);text-align:center}
+.b{flex:1;min-width:0}
+.b h3{margin:0 0 .2rem;font-size:1.1rem}
+.b p{margin:.1rem 0;color:var(--mute);font-size:.92rem;overflow-wrap:anywhere}
+.days{display:inline-block;margin-top:.3rem;padding:.1rem .6rem;border-radius:99px;background:#e6f1ea;color:var(--ok);font-weight:600;font-size:.9rem}
+.late .days{background:#f7e3e5;color:var(--red)}
+.act{display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
+.act button{padding:.35rem .7rem;font-size:.9rem}
+.empty{text-align:center;color:var(--mute);padding:2rem 0}
+.c{cursor:pointer}
+.hl{list-style:none;padding:0;margin:.6rem 0;max-height:50vh;overflow:auto}
+.hl li{display:flex;justify-content:space-between;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line)}
+.hl small{color:var(--mute);text-align:left}
+dialog{border:0;border-radius:14px;padding:1.2rem;width:min(460px,94vw)}
+dialog::backdrop{background:#0008}
+dialog h2{margin:0 0 .4rem}
+.row{display:flex;gap:.6rem;margin-top:1rem;justify-content:flex-start}
+#toast{position:fixed;bottom:16px;inset-inline:16px;margin:auto;max-width:420px;background:var(--ink);color:#fff;padding:.7rem 1rem;border-radius:10px;text-align:center}
+</style>
+</head>
+<body>
+
+<section id="login">
+  <div class="cross">✝</div>
+  <h1>الاعتراف</h1>
+  <form id="lf">
+    <label for="em">البريد الإلكتروني</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">كلمة المرور</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">دخول</button>
+    <div class="err" id="lerr"></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <span class="cross" style="font-size:1.5rem">✝</span>
+    <h1>الاعتراف</h1>
+    <button id="addBtn" class="ok">إضافة معترف</button>
+    <button id="setBtn">الإعدادات</button>
+    <button id="outBtn">خروج</button>
+  </header>
+  <main>
+    <div class="bar">
+      <input id="q" type="search" placeholder="بحث بالاسم أو الموبايل أو العنوان">
+      <button id="lateBtn" class="ghost">المتأخرون 40 يومًا فأكثر</button>
+    </div>
+    <div class="stats">
+      <span>الإجمالي <b id="sAll">0</b></span>
+      <span class="late">متأخرون <b id="sLate">0</b></span>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form id="f">
+    <h2 id="dt">إضافة معترف</h2>
+    <label for="fn">الاسم</label><input id="fn" required maxlength="80">
+    <label for="fa">العنوان</label><input id="fa" maxlength="120">
+    <label for="fj">الوظيفة أو المرحلة التعليمية</label><input id="fj" maxlength="80">
+    <label for="fp">رقم الموبايل</label><input id="fp" type="tel" inputmode="tel" maxlength="20">
+    <label for="fs">الخدمة الكنسية (إن وجدت)</label><input id="fs" maxlength="80">
+    <label for="fd">تاريخ الاعتراف</label><input id="fd" type="date" required>
+    <div class="row"><button type="submit" class="ok">حفظ</button><button type="button" class="ghost" data-close>إلغاء</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg2">
+  <form id="f2">
+    <h2>تسجيل اعتراف جديد</h2>
+    <p id="n2" style="margin:.2rem 0"></p>
+    <label for="nd">تاريخ الاعتراف</label><input id="nd" type="date" required>
+    <div class="row"><button type="submit" class="ok">تسجيل</button><button type="button" class="ghost" data-close>إلغاء</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg3">
+  <form id="wf">
+    <h2>تنبيه واتساب لأبونا</h2>
+    <label for="wp">رقم واتساب أبونا (بالصيغة الدولية)</label><input id="wp" type="tel" inputmode="tel" dir="ltr" placeholder="20xxxxxxxxxx">
+    <label for="wk">مفتاح CallMeBot</label><input id="wk" dir="ltr" autocomplete="off">
+    <div class="err" id="werr"></div>
+    <div class="row"><button type="submit" class="ok">حفظ الرقم</button></div>
+  </form>
+  <hr style="margin:1.2rem 0;border:0;border-top:1px solid var(--line)">
+  <form id="sf">
+    <h2>إعدادات الحساب</h2>
+    <label for="sc">كلمة المرور الحالية</label><input id="sc" type="password" autocomplete="current-password" required>
+    <label for="sp">كلمة مرور جديدة (اختياري)</label><input id="sp" type="password" autocomplete="new-password">
+    <label for="se">إيميل جديد (اختياري)</label><input id="se" type="email" autocomplete="off">
+    <div class="err" id="serr"></div>
+    <div class="row"><button type="submit" class="ok">حفظ</button><button type="button" class="ghost" data-close>إلغاء</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg4">
+  <h2 id="ht"></h2>
+  <p id="hs" style="color:var(--mute);margin:.2rem 0"></p>
+  <ul class="hl" id="hl"></ul>
+  <div class="row"><button type="button" class="ghost" data-close>إغلاق</button></div>
+</dialog>
+
+<div id="toast" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ===== ضع إعدادات مشروع Firebase الخاص بأبونا هنا =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBhAVz8bp6kWXbgLh12L1FnZ5c6vdtbvp4",
+  authDomain: "confession-abouna1.firebaseapp.com",
+  projectId: "confession-abouna1",
+  appId: "1:773744504778:web:68a432de458b5fe3992933"
+};
+// =====================================================
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth(), db = firebase.firestore(), col = db.collection('confessors');
+const LIMIT = 40, IDLE_MIN = 15;
+let items = [], unsub = null, onlyLate = false, editId = null, noteId = null, idleT = null;
+const $ = id => document.getElementById(id);
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const daysSince = s => Math.floor((Date.parse(today()) - Date.parse(s)) / 864e5);
+
+function toast(m) {
+  const t = $('toast'); t.textContent = m; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3500);
+}
+
+// ---- الدخول والخروج ----
+$('lf').addEventListener('submit', async e => {
+  e.preventDefault(); $('lerr').textContent = '';
+  try { await auth.signInWithEmailAndPassword($('em').value.trim(), $('pw').value); $('pw').value = ''; }
+  catch (x) {
+    const bad = ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'];
+    $('lerr').textContent = bad.includes(x.code) ? 'البريد أو كلمة المرور غير صحيحة' : 'تعذر الدخول (' + (x.code || 'خطأ') + ')';
+  }
+});
+$('outBtn').onclick = () => auth.signOut();
+
+auth.onAuthStateChanged(u => {
+  $('login').hidden = !!u; $('app').hidden = !u;
+  if (unsub) { unsub(); unsub = null; }
+  if (u) {
+    unsub = col.orderBy('createdAt').onSnapshot(
+      s => { items = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
+      e => toast('تعذر تحميل البيانات، تأكد من قواعد Firestore'));
+    resetIdle();
+  } else { items = []; clearTimeout(idleT); }
+});
+
+// خروج تلقائي بعد فترة خمول
+function resetIdle() { clearTimeout(idleT); if (auth.currentUser) idleT = setTimeout(() => auth.signOut(), IDLE_MIN * 6e4); }
+['click', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, resetIdle, { passive: true }));
+
+// ---- العرض ----
+function render() {
+  const q = $('q').value.trim().toLowerCase();
+  const all = items.map((x, i) => ({ ...x, n: i + 1, d: daysSince(x.lastConfession) }));
+  $('sAll').textContent = all.length;
+  $('sLate').textContent = all.filter(x => x.d >= LIMIT).length;
+  $('lateBtn').classList.toggle('red', onlyLate);
+  $('lateBtn').classList.toggle('ghost', !onlyLate);
+  const rows = all.filter(x => (!onlyLate || x.d >= LIMIT) &&
+    (!q || [x.name, x.phone, x.address, x.job, x.service].join(' ').toLowerCase().includes(q)));
+  $('list').innerHTML = rows.length ? rows.map(x => `
+    <article class="c ${x.d >= LIMIT ? 'late' : ''}" data-id="${x.id}">
+      <div class="no">${x.n}</div>
+      <div class="b">
+        <h3>${esc(x.name)}</h3>
+        ${x.job ? `<p>${esc(x.job)}</p>` : ''}
+        ${x.address ? `<p>${esc(x.address)}</p>` : ''}
+        ${x.phone ? `<p dir="ltr" style="text-align:right">${esc(x.phone)}</p>` : ''}
+        ${x.service ? `<p>الخدمة: ${esc(x.service)}</p>` : ''}
+        <p>آخر اعتراف: ${esc(x.lastConfession)}</p>
+        <span class="days">مرّ ${x.d} يومًا</span>
+        <div class="act">
+          <button class="ok" data-a="new" data-id="${x.id}">تسجيل اعتراف جديد</button>
+          <button class="ghost" data-a="edit" data-id="${x.id}">تعديل</button>
+          <button class="ghost" data-a="del" data-id="${x.id}">حذف</button>
+        </div>
+      </div>
+    </article>`).join('') : '<div class="empty">لا توجد نتائج</div>';
+}
+$('q').addEventListener('input', render);
+$('lateBtn').onclick = () => { onlyLate = !onlyLate; render(); };
+
+// ---- إضافة وتعديل ----
+$('addBtn').onclick = () => {
+  editId = null; $('dt').textContent = 'إضافة معترف'; $('f').reset(); $('fd').value = today(); $('dlg').showModal();
+};
+$('list').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-a]');
+  if (!b) { const c = e.target.closest('.c'); const y = c && items.find(i => i.id === c.dataset.id); if (y) showHist(y); return; }
+  const x = items.find(i => i.id === b.dataset.id); if (!x) return;
+  if (b.dataset.a === 'edit') {
+    editId = x.id; $('dt').textContent = 'تعديل البيانات';
+    $('fn').value = x.name || ''; $('fa').value = x.address || ''; $('fj').value = x.job || '';
+    $('fp').value = x.phone || ''; $('fs').value = x.service || ''; $('fd').value = x.lastConfession || today();
+    $('dlg').showModal();
+  } else if (b.dataset.a === 'new') {
+    noteId = x.id; $('n2').textContent = x.name; $('nd').value = today(); $('dlg2').showModal();
+  } else if (b.dataset.a === 'del') {
+    if (!confirm('حذف "' + x.name + '" نهائيًا؟ لا يمكن التراجع.')) return;
+    try { await col.doc(x.id).delete(); toast('تم الحذف'); } catch (er) { toast('تعذر الحذف'); }
+  }
+});
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+$('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {
+    name: $('fn').value.trim(), address: $('fa').value.trim(), job: $('fj').value.trim(),
+    phone: $('fp').value.trim(), service: $('fs').value.trim(), lastConfession: $('fd').value
+  };
+  if (!data.name || !data.lastConfession) return;
+  try {
+    if (editId) {
+      const old = items.find(i => i.id === editId) || {};
+      let h = histOf(old);
+      if (data.lastConfession !== old.lastConfession) h = h.filter(d => d !== old.lastConfession);
+      data.history = uniqSort(h.concat(data.lastConfession));
+      data.lastConfession = data.history[data.history.length - 1];
+      await col.doc(editId).update(data);
+    } else await col.add({ ...data, history: [data.lastConfession], createdAt: Date.now() });
+    $('dlg').close(); toast('تم الحفظ');
+  } catch (er) { toast('تعذر الحفظ'); }
+});
+
+$('f2').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const old = items.find(i => i.id === noteId) || {};
+    const h = uniqSort(histOf(old).concat($('nd').value));
+    await col.doc(noteId).update({ history: h, lastConfession: h[h.length - 1] });
+    $('dlg2').close(); toast('تم تسجيل الاعتراف');
+  }
+  catch (er) { toast('تعذر التسجيل'); }
+});
+
+// ---- سجل الاعتراف ----
+const uniqSort = a => [...new Set(a)].sort();
+const histOf = x => (x.history && x.history.length) ? x.history : (x.lastConfession ? [x.lastConfession] : []);
+function showHist(x) {
+  const h = histOf(x).slice().sort().reverse();
+  $('ht').textContent = x.name;
+  $('hs').textContent = 'عدد مرات الاعتراف المسجلة: ' + h.length + ' — مرّ ' + daysSince(x.lastConfession) + ' يومًا منذ آخر اعتراف';
+  $('hl').innerHTML = h.map((d, i) => '<li><span>' + esc(d) + '</span><small>' +
+    (i < h.length - 1 ? 'بعد ' + Math.round((Date.parse(d) - Date.parse(h[i + 1])) / 864e5) + ' يومًا من الاعتراف السابق' : 'أول اعتراف مسجل') +
+    '</small></li>').join('');
+  $('dlg4').showModal();
+}
+
+// ---- الإعدادات: تغيير كلمة المرور أو الإيميل ----
+const stRef = db.collection('settings').doc('priest');
+$('setBtn').onclick = async () => {
+  $('sf').reset(); $('wf').reset(); $('serr').textContent = ''; $('werr').textContent = '';
+  $('dlg3').showModal();
+  try { const d = await stRef.get(); if (d.exists) { $('wp').value = d.data().phone || ''; $('wk').value = d.data().apikey || ''; } } catch (x) {}
+};
+$('wf').addEventListener('submit', async e => {
+  e.preventDefault(); $('werr').textContent = '';
+  const phone = $('wp').value.replace(/\D/g, ''), apikey = $('wk').value.trim();
+  if (phone.length < 10) { $('werr').textContent = 'اكتب الرقم بالصيغة الدولية'; return; }
+  if (!apikey) { $('werr').textContent = 'اكتب مفتاح CallMeBot'; return; }
+  try { await stRef.set({ phone, apikey }); toast('تم حفظ رقم التنبيه'); }
+  catch (er) { $('werr').textContent = 'تعذر الحفظ'; }
+});
+$('sf').addEventListener('submit', async e => {
+  e.preventDefault(); $('serr').textContent = '';
+  const u = auth.currentUser, cur = $('sc').value, np = $('sp').value, ne = $('se').value.trim();
+  if (!np && !ne) { $('serr').textContent = 'اكتب كلمة مرور جديدة أو إيميل جديد'; return; }
+  if (np && np.length < 8) { $('serr').textContent = 'كلمة المرور لازم تكون 8 حروف على الأقل'; return; }
+  try {
+    await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, cur));
+    if (np) await u.updatePassword(np);
+    if (ne) await u.verifyBeforeUpdateEmail(ne);
+    $('dlg3').close();
+    toast(ne ? 'افتح الإيميل الجديد واضغط رابط التأكيد لإتمام التغيير' : 'تم تغيير كلمة المرور');
+  } catch (er) {
+    $('serr').textContent = (er.code === 'auth/invalid-credential' || er.code === 'auth/wrong-password')
+      ? 'كلمة المرور الحالية غير صحيحة' : 'تعذر التنفيذ (' + (er.code || 'خطأ') + ')';
+  }
+});
+</script>
+</body>
+</html>
